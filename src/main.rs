@@ -1,8 +1,7 @@
 use nu_plugin::{serve_plugin, MsgPackSerializer, Plugin, PluginCommand};
 use nu_plugin::{EngineInterface, EvaluatedCall, SimplePluginCommand};
-use nu_protocol::{
-    Category, Example, IntoSpanned, LabeledError, ShellError, Signature, SyntaxShape, Value,
-};
+use nu_protocol::shell_error::io::IoError;
+use nu_protocol::{location, Category, Example, LabeledError, Signature, SyntaxShape, Value};
 
 mod data;
 mod ui;
@@ -93,8 +92,13 @@ impl SimplePluginCommand for ExploreIr {
         }
 
         let foreground = engine.enter_foreground()?;
-        ui::start(engine.clone(), call.head, initial_block)
-            .map_err(|err| ShellError::from(err.into_spanned(call.head)))?;
+        ui::start(engine.clone(), call.head, initial_block).map_err(|err| -> LabeledError {
+            LabeledError::from_diagnostic(&IoError::new_internal(
+                err.kind(),
+                "encountered error drawing terminal UI",
+                location!(),
+            ))
+        })?;
         drop(foreground);
 
         Ok(Value::nothing(call.head))
